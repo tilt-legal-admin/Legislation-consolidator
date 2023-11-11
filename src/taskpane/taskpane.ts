@@ -9,16 +9,22 @@ Office.onReady((info) => {
   }
 });
 
-async function getTextFromWord(): Promise<string> {
-  return Word.run(async (context) => {
-      // Get the current selection
-      const range = context.document.getSelection();
-      range.load("text");
+interface TextWithStyle {
+  text: string;
+  style: Word.Font;
+}
 
-      // Synchronize the document state
+async function getTextFromWord(): Promise<TextWithStyle> {
+  return Word.run(async (context) => {
+      const range = context.document.getSelection();
+      range.font.load('name, size, color, bold, italic, underline');
+
       await context.sync();
 
-      return range.text;
+      return {
+          text: range.text,
+          style: range.font
+      };
   });
 }
 
@@ -54,25 +60,34 @@ async function processTextWithOpenAI(text: string, instructions: string): Promis
 }
 
 
-async function applyChangesToWord(newText: string): Promise<void> {
+async function applyChangesToWord(newText: string, originalStyle: Word.Font): Promise<void> {
   return Word.run(async (context) => {
-      // Replace the selected text with the new text
       const range = context.document.getSelection();
-      range.insertText(newText, "Replace");
+
+      range.clear(); // Clears the selected content
+      const insertedRange = range.insertText(newText, "Replace");
+
+      // Apply the original style
+      insertedRange.font.name = originalStyle.name;
+      insertedRange.font.size = originalStyle.size;
+      insertedRange.font.color = originalStyle.color;
+      insertedRange.font.bold = originalStyle.bold;
+      insertedRange.font.italic = originalStyle.italic;
+      insertedRange.font.underline = originalStyle.underline;
 
       await context.sync();
   });
 }
 
-
 async function processText() {
-    try {
-        const instructions = (document.getElementById("instructionField") as HTMLTextAreaElement).value;
-        const textFromWord = await getTextFromWord();
+  try {
+      const instructions = (document.getElementById("instructionField") as HTMLTextAreaElement).value;
+      const { text, style } = await getTextFromWord();
 
-        const processedText = await processTextWithOpenAI(textFromWord, instructions);
-        await applyChangesToWord(processedText);
-    } catch (error) {
-        console.error("Error processing text: ", error);
-    }
+      const processedText = await processTextWithOpenAI(text, instructions);
+      await applyChangesToWord(processedText, style);
+  } catch (error) {
+      console.error("Error processing text: ", error);
+  }
 }
+
