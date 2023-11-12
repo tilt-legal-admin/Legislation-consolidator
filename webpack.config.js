@@ -26,6 +26,10 @@ module.exports = async (env, options) => {
     },
     resolve: {
       extensions: [".ts", ".tsx", ".html", ".js"],
+      fallback: {
+        os: require.resolve("os-browserify/browser"),
+        crypto: require.resolve("crypto-browserify")
+      }
     },
     module: {
       rules: [
